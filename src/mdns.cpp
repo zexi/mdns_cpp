@@ -181,8 +181,9 @@ int mDNS::openClientSockets(int *sockets, int max_sockets, int port) {
     if (!ifa->ifa_addr) {
       continue;
     }
+    MDNS_LOG << "Local IPv4 address: " << service_address_ipv4_ << "****\n";
 
-    if (ifa->ifa_addr->sa_family == AF_INET) {
+    /*if (ifa->ifa_addr->sa_family == AF_INET) {
       struct sockaddr_in *saddr = (struct sockaddr_in *)ifa->ifa_addr;
       if (saddr->sin_addr.s_addr != htonl(INADDR_LOOPBACK)) {
         int log_addr = 0;
@@ -236,7 +237,7 @@ int mDNS::openClientSockets(int *sockets, int max_sockets, int port) {
           MDNS_LOG << "Local IPv6 address: " << addr << "\n";
         }
       }
-    }
+    }*/
   }
 
   freeifaddrs(ifaddr);
@@ -265,7 +266,7 @@ static int query_callback(int sock, const struct sockaddr *from, size_t addrlen,
   mdns_string_t entrystr = mdns_string_extract(data, size, &name_offset, entrybuffer, sizeof(entrybuffer));
 
   const int str_capacity = 1000;
-  char str_buffer[str_capacity]={};
+  char str_buffer[str_capacity] = {};
 
   if (rtype == MDNS_RECORDTYPE_PTR) {
     mdns_string_t namestr =
@@ -276,33 +277,36 @@ static int query_callback(int sock, const struct sockaddr *from, size_t addrlen,
   } else if (rtype == MDNS_RECORDTYPE_SRV) {
     mdns_record_srv_t srv =
         mdns_record_parse_srv(data, size, record_offset, record_length, namebuffer, sizeof(namebuffer));
-    snprintf(str_buffer, str_capacity,"%s : %s %.*s SRV %.*s priority %d weight %d port %d\n", fromaddrstr.data(), entrytype,
-           MDNS_STRING_FORMAT(entrystr), MDNS_STRING_FORMAT(srv.name), srv.priority, srv.weight, srv.port);
+    snprintf(str_buffer, str_capacity, "%s : %s %.*s SRV %.*s priority %d weight %d port %d\n", fromaddrstr.data(),
+             entrytype, MDNS_STRING_FORMAT(entrystr), MDNS_STRING_FORMAT(srv.name), srv.priority, srv.weight, srv.port);
   } else if (rtype == MDNS_RECORDTYPE_A) {
     struct sockaddr_in addr;
     mdns_record_parse_a(data, size, record_offset, record_length, &addr);
     const auto addrstr = ipv4AddressToString(namebuffer, sizeof(namebuffer), &addr, sizeof(addr));
-    snprintf(str_buffer, str_capacity,"%s : %s %.*s A %s\n", fromaddrstr.data(), entrytype, MDNS_STRING_FORMAT(entrystr), addrstr.data());
+    snprintf(str_buffer, str_capacity, "%s : %s %.*s A %s\n", fromaddrstr.data(), entrytype,
+             MDNS_STRING_FORMAT(entrystr), addrstr.data());
   } else if (rtype == MDNS_RECORDTYPE_AAAA) {
     struct sockaddr_in6 addr;
     mdns_record_parse_aaaa(data, size, record_offset, record_length, &addr);
     const auto addrstr = ipv6AddressToString(namebuffer, sizeof(namebuffer), &addr, sizeof(addr));
-    snprintf(str_buffer, str_capacity,"%s : %s %.*s AAAA %s\n", fromaddrstr.data(), entrytype, MDNS_STRING_FORMAT(entrystr), addrstr.data());
+    snprintf(str_buffer, str_capacity, "%s : %s %.*s AAAA %s\n", fromaddrstr.data(), entrytype,
+             MDNS_STRING_FORMAT(entrystr), addrstr.data());
   } else if (rtype == MDNS_RECORDTYPE_TXT) {
     size_t parsed = mdns_record_parse_txt(data, size, record_offset, record_length, txtbuffer,
                                           sizeof(txtbuffer) / sizeof(mdns_record_txt_t));
     for (size_t itxt = 0; itxt < parsed; ++itxt) {
       if (txtbuffer[itxt].value.length) {
-        snprintf(str_buffer, str_capacity,"%s : %s %.*s TXT %.*s = %.*s\n", fromaddrstr.data(), entrytype, MDNS_STRING_FORMAT(entrystr),
-               MDNS_STRING_FORMAT(txtbuffer[itxt].key), MDNS_STRING_FORMAT(txtbuffer[itxt].value));
+        snprintf(str_buffer, str_capacity, "%s : %s %.*s TXT %.*s = %.*s\n", fromaddrstr.data(), entrytype,
+                 MDNS_STRING_FORMAT(entrystr), MDNS_STRING_FORMAT(txtbuffer[itxt].key),
+                 MDNS_STRING_FORMAT(txtbuffer[itxt].value));
       } else {
-        snprintf(str_buffer, str_capacity,"%s : %s %.*s TXT %.*s\n", fromaddrstr.data(), entrytype, MDNS_STRING_FORMAT(entrystr),
-               MDNS_STRING_FORMAT(txtbuffer[itxt].key));
+        snprintf(str_buffer, str_capacity, "%s : %s %.*s TXT %.*s\n", fromaddrstr.data(), entrytype,
+                 MDNS_STRING_FORMAT(entrystr), MDNS_STRING_FORMAT(txtbuffer[itxt].key));
       }
     }
   } else {
-    snprintf(str_buffer, str_capacity,"%s : %s %.*s type %u rclass 0x%x ttl %u length %d\n", fromaddrstr.data(), entrytype,
-           MDNS_STRING_FORMAT(entrystr), rtype, rclass, ttl, (int)record_length);
+    snprintf(str_buffer, str_capacity, "%s : %s %.*s type %u rclass 0x%x ttl %u length %d\n", fromaddrstr.data(),
+             entrytype, MDNS_STRING_FORMAT(entrystr), rtype, rclass, ttl, (int)record_length);
   }
   MDNS_LOG << std::string(str_buffer);
 
@@ -383,7 +387,7 @@ void mDNS::startService(bool start_thread) {
   }
 
   running_ = true;
-  if(start_thread){
+  if (start_thread) {
     worker_thread_ = std::thread([this]() { this->runMainLoop(); });
   } else {
     this->runMainLoop();
@@ -406,6 +410,8 @@ void mDNS::setServicePort(std::uint16_t port) { port_ = port; }
 void mDNS::setServiceName(const std::string &name) { name_ = name; }
 
 void mDNS::setServiceTxtRecord(const std::string &txt_record) { txt_record_ = txt_record; }
+
+void mDNS::setServiceAddressIPV4(uint32_t ipv4) { service_address_ipv4_ = ipv4; }
 
 void mDNS::runMainLoop() {
   constexpr size_t number_of_sockets = 32;

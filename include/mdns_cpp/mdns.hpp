@@ -14,7 +14,7 @@ class mDNS {
  public:
   ~mDNS();
 
-  void startService(bool start_thread=true);
+  void startService(bool start_thread = true);
   void stopService();
   bool isServiceRunning();
 
@@ -22,6 +22,7 @@ class mDNS {
   void setServicePort(std::uint16_t port);
   void setServiceName(const std::string &name);
   void setServiceTxtRecord(const std::string &text_record);
+  void setServiceAddressIPV4(uint32_t ipv4);
 
   void executeQuery(const std::string &service);
   void executeDiscovery();
